@@ -19,20 +19,12 @@ import warnings
 import re
 import json
 import requests
-from fastapi.middleware.cors import CORSMiddleware
 
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = FastAPI()
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Replace with the appropriate origins if needed
-    allow_methods=["*"],  # Or specify the allowed HTTP methods
-    allow_headers=["*"],  # Or specify the allowed headers
-)
 
 # Define Elasticsearch connection
 es = Elasticsearch([os.environ.get("ELASTICSEARCH_HOST")])
