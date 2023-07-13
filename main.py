@@ -4,7 +4,6 @@ from fastapi import HTTPException, status, Query
 from requests.exceptions import ConnectionError, Timeout
 from starlette.requests import Request
 import urllib.parse
-from dotenv import load_dotenv
 from paginate_sqlalchemy import SqlalchemyOrmPage
 import math
 import pandas as pd
@@ -20,19 +19,15 @@ import re
 import json
 import requests
 
-
-# Load environment variables from .env file
-load_dotenv()
-
 app = FastAPI()
 
 # Define Elasticsearch connection
-es = Elasticsearch([os.environ.get("ELASTICSEARCH_HOST")])
+es = Elasticsearch("http://localhost:9201")
 
 index_name = "jobs_index"
 
 # Đường dẫn đến tệp trên Google Drive
-file_stpwd = os.environ.get("GOOGLE_DRIVE_FILE_URL")
+file_stpwd = "https://drive.google.com/uc?id=1AQrnIFnqzPQbXXbYRADj5yh1I3_E_YMt"
 
 # Tên biến toàn cục để lưu trữ nội dung của tệp
 stopwords_vn = None
@@ -50,7 +45,6 @@ def load_stopwords():
 # Gọi hàm load_stopwords() để đảm bảo tệp đã được tải trước khi sử dụng
 stop_words = load_stopwords()
 
-# file_url = "https://drive.google.com/uc?id=1RMBlSsrMMuT9xyDerDlAKJG8JQ-DDcfZ"
 file_url = "https://drive.google.com/uc?id=1kAK11AE9FIsLge78Ih9vzYCrGCxqOkOf"
 
 df = pd.read_csv(file_url)
@@ -122,7 +116,6 @@ def search_jobs(
     categories: str = Query(None, description="Categories filter"),
     page: int = Query(1, description="Page number"),
     limit: int = Query(10, description="Number of results per page"),
-    base_url: str = Query("http://localhost:8000", description="Base URL of the API")
 ):
     try:
         # Search for jobs in Elasticsearch
@@ -168,7 +161,7 @@ def search_jobs(
 
         # Calculate pagination information
         total_pages = math.ceil(total / limit)
-        base_url = f"{base_url}/jobs?keyword={keyword}&addresses={addresses}&skill={skill}&categories={categories}"
+        base_url = f"http://localhost:8001/jobs?keyword={keyword}&addresses={addresses}&skill={skill}&categories={categories}"
         first_page_url = f"{base_url}&page=1"
         last_page = total_pages
         last_page_url = f"{base_url}&page={last_page}"
@@ -206,7 +199,7 @@ def search_jobs(
                 "error": False,
                 "message": "Không tìm thấy công việc",
                 "data": None,
-                "status_code": 400
+                "status_code": 404
             }
         
         pagination_info = {
@@ -216,7 +209,7 @@ def search_jobs(
             "last_page_url": last_page_url,
             "links": links,
             "next_page_url": f"{base_url}&page={next_page}" if next_page else None,
-            "path": f"{base_url}/jobs?keyword={keyword}&addresses={addresses}&skill={skill}&categories={categories}",
+            "path": f"http://localhost:8001/jobs?keyword={keyword}&addresses={addresses}&skill={skill}&categories={categories}",
             "per_page": limit,
             "prev_page_url": f"{base_url}&page={prev_page}" if prev_page else None,
             "to": min(page * limit, total),
@@ -233,7 +226,7 @@ def search_jobs(
                     "pagination_info": pagination_info
                 }
             },
-            "status_code": status.HTTP_200_OK
+            "status_code": 200
         }
 
     except (ConnectionError, TimeoutError, Timeout) as e:
@@ -242,7 +235,7 @@ def search_jobs(
             "error": True,
             "message": "Lỗi mạng",
             "data": [],
-            "status_code": HTTP_503_SERVICE_UNAVAILABLE
+            "status_code": 503
         }
     except (ValueError, TypeError) as e:
         # Xử lý lỗi đầu vào gây crash hoặc lỗi xử lý không mong muốn
@@ -250,12 +243,12 @@ def search_jobs(
             "error": True,
             "message": "Lỗi đầu vào gây crash",
             "data": [],
-            "status_code": status.HTTP_400_BAD_REQUEST
+            "status_code": 400
         }
     except Exception as e:
         return {
             "error": True,
             "message": "Lổi đầu vào không hợp lệ/ Lỗi website đang gặp sự cố",
             "data": [],
-            "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR
+            "status_code": 500
         }
